@@ -1,0 +1,6 @@
+{
+  "name": "NPPES Delta Pipeline & DuckDB Manager",
+  "description": "High-performance NPPES provider registry delta synchronization engine with DuckDB storage, automated nightly cron job, change tracking for adds/deactivations, and Docker containerization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
