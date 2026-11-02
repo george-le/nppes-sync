@@ -10,8 +10,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'overview' | 'providers' | 'jobs' | 'sql' | 'docker'>('overview');
   const [statusData, setStatusData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<any>(null);
 
   // Providers state
   const [providers, setProviders] = useState<any[]>([]);
@@ -19,6 +17,21 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState('all');
   const [selectedProvider, setSelectedProvider] = useState<any>(null);
+  const [providerEvents, setProviderEvents] = useState<any[]>([]);
+
+  // Change history for the selected provider, from provider_events.
+  useEffect(() => {
+    if (!selectedProvider) {
+      setProviderEvents([]);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/providers/${encodeURIComponent(selectedProvider.source)}/${encodeURIComponent(selectedProvider.source_provider_id)}/events`)
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled) setProviderEvents(data.events || []); })
+      .catch(() => { if (!cancelled) setProviderEvents([]); });
+    return () => { cancelled = true; };
+  }, [selectedProvider]);
 
   // SQL Playground state
   const [sqlQuery, setSqlQuery] = useState('SELECT * FROM providers LIMIT 10');
@@ -89,26 +102,6 @@ export default function App() {
   useEffect(() => {
     fetchProviders();
   }, [searchQuery, statusFilter, stateFilter]);
-
-  const handleTriggerSync = async () => {
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const res = await fetch('/api/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncType: 'weekly_dissemination' })
-      });
-      const data = await res.json();
-      setSyncResult(data);
-      await fetchStatus();
-      await fetchProviders();
-    } catch (err: any) {
-      setSyncResult({ error: err.message });
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const handleRunSql = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,36 +227,12 @@ export default function App() {
             );
           })()}
 
-          <button
-            onClick={handleTriggerSync}
-            disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-all shadow-sm disabled:opacity-50 whitespace-nowrap"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing Pipeline...' : 'Run Delta Sync Now'}
-          </button>
         </div>
       </header>
 
       {/* Main Content Viewport */}
       <main className="max-w-7xl mx-auto px-8 py-8">
         
-        {/* Sync Result Banner if triggered */}
-        {syncResult && (
-          <div className="mb-8 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-emerald-900">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-              <div>
-                <p className="font-semibold text-sm">Sync Job Completed Successfully ({syncResult.jobId})</p>
-                <p className="text-xs text-emerald-700">
-                  Processed {syncResult.summary?.recordsProcessed?.toLocaleString()} records · Added {syncResult.summary?.addsCount} new NPIs · Deactivated {syncResult.summary?.deactivationsCount} · Updated {syncResult.summary?.updatesCount} in {syncResult.summary?.durationMs}ms
-                </p>
-              </div>
-            </div>
-            <button onClick={() => setSyncResult(null)} className="text-xs font-medium text-emerald-800 hover:underline">Dismiss</button>
-          </div>
-        )}
-
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
@@ -329,23 +298,11 @@ export default function App() {
               <div style={{ width: '100%', height: '280px' }}>
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart
-                    data={
-                      statusData?.recentJobs && statusData.recentJobs.length > 0
-                        ? statusData.recentJobs.slice(0, 7).reverse().map((j: any) => ({
-                            timestamp: j.timestamp,
-                            additions: j.adds_count,
-                            deactivations: j.deactivations_count
-                          }))
-                        : [
-                            { timestamp: 'Oct 25', additions: 34, deactivations: 12 },
-                            { timestamp: 'Oct 26', additions: 42, deactivations: 8 },
-                            { timestamp: 'Oct 27', additions: 28, deactivations: 15 },
-                            { timestamp: 'Oct 28', additions: 51, deactivations: 14 },
-                            { timestamp: 'Oct 29', additions: 39, deactivations: 9 },
-                            { timestamp: 'Oct 30', additions: 45, deactivations: 11 },
-                            { timestamp: 'Oct 31', additions: 58, deactivations: 16 }
-                          ]
-                    }
+                    data={(statusData?.recentJobs ?? []).slice(0, 7).reverse().map((j: any) => ({
+                      timestamp: j.timestamp,
+                      additions: j.adds_count,
+                      deactivations: j.deactivations_count
+                    }))}
                     margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -378,22 +335,7 @@ export default function App() {
               <div style={{ width: '100%', height: '320px' }}>
                 <ResponsiveContainer width="100%" height={320}>
                   <BarChart
-                    data={
-                      statusData?.topTaxonomies && statusData.topTaxonomies.length > 0
-                        ? statusData.topTaxonomies
-                        : [
-                            { name: 'Family Medicine', count: 1420 },
-                            { name: 'Internal Medicine', count: 1280 },
-                            { name: 'Pediatrics', count: 950 },
-                            { name: 'Dentist', count: 890 },
-                            { name: 'Nurse Practitioner', count: 760 },
-                            { name: 'Cardiovascular Disease', count: 620 },
-                            { name: 'Psychologist', count: 540 },
-                            { name: 'General Practice', count: 480 },
-                            { name: 'Dermatology', count: 410 },
-                            { name: 'Pharmacist', count: 390 }
-                          ]
-                    }
+                    data={statusData?.topTaxonomies ?? []}
                     layout="vertical"
                     margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
                   >
@@ -416,30 +358,20 @@ export default function App() {
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <HardDrive className="w-5 h-5 text-indigo-600" />
-                    State Provider Density (Choropleth Map View)
+                    Provider Density
                   </h3>
-                  <p className="text-xs text-slate-500">Geographic distribution of provider registries aggregated across U.S. states</p>
+                  <p className="text-xs text-slate-500">{(statusData?.stateDensity ?? []).length > 1 ? 'Distinct providers by state' : 'Distinct providers by city (top 24). Only one state is loaded.'}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                {(
-                  statusData?.stateDensity && statusData.stateDensity.length > 0
-                    ? statusData.stateDensity
-                    : [
-                        { state: 'CA', count: 4210 },
-                        { state: 'NY', count: 3890 },
-                        { state: 'TX', count: 3450 },
-                        { state: 'FL', count: 3120 },
-                        { state: 'IL', count: 2100 },
-                        { state: 'PA', count: 1950 },
-                        { state: 'OH', count: 1820 },
-                        { state: 'GA', count: 1650 },
-                        { state: 'NC', count: 1480 },
-                        { state: 'WA', count: 1320 }
-                      ]
-                ).map((item: any) => {
-                  const maxCount = 5000;
+                {(() => {
+                  const states = statusData?.stateDensity ?? [];
+                  const tiles = states.length > 1
+                    ? states.map((s: any) => ({ label: s.state, count: s.count }))
+                    : (statusData?.cityDensity ?? []).map((c: any) => ({ label: c.city, count: c.count }));
+                  const maxCount = Math.max(1, ...tiles.map((t: any) => t.count));
+                  return tiles.map((item: any) => {
                   const ratio = Math.min(item.count / maxCount, 1);
                   let bgClass = 'bg-slate-100 text-slate-800 border-slate-200';
                   if (ratio > 0.6) bgClass = 'bg-indigo-900 text-white border-indigo-950 shadow-sm';
@@ -449,12 +381,12 @@ export default function App() {
 
                   return (
                     <div 
-                      key={item.state} 
+                      key={item.label} 
                       className={`p-4 rounded-xl border flex flex-col justify-between transition-all hover:scale-105 ${bgClass}`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-base">{item.state}</span>
-                        <span className="text-[10px] uppercase tracking-wider opacity-75 font-mono">State</span>
+                        <span className="font-bold text-base">{item.label}</span>
+                        <span className="text-[10px] uppercase tracking-wider opacity-75 font-mono">{states.length > 1 ? 'State' : 'City'}</span>
                       </div>
                       <div className="mt-4">
                         <span className="text-2xl font-extrabold font-mono tabular-nums">{item.count.toLocaleString()}</span>
@@ -462,7 +394,8 @@ export default function App() {
                       </div>
                     </div>
                   );
-                })}
+                  });
+                })()}
               </div>
             </div>
 
@@ -580,12 +513,15 @@ export default function App() {
                     ) : (
                       providers.map((p: any) => (
                         <tr 
-                          key={p.npi} 
+                          key={`${p.source}:${p.source_provider_id}`}
                           onClick={() => setSelectedProvider(p)}
                           className="hover:bg-slate-50/80 transition-colors cursor-pointer"
                         >
                           <td className="px-6 py-4 font-mono text-xs font-semibold text-slate-900">{p.npi}</td>
-                          <td className="px-6 py-4 font-medium text-slate-900">{p.provider_name}</td>
+                          <td className="px-6 py-4 font-medium text-slate-900">
+                            {p.provider_name || p.organization_name || '—'}
+                            <span className="block text-[10px] font-mono text-slate-400 uppercase">{p.source}</span>
+                          </td>
                           <td className="px-6 py-4 text-slate-600">{p.city}, {p.state} {p.postal_code}</td>
                           <td className="px-6 py-4 text-slate-600 text-xs">{p.taxonomy_desc} ({p.taxonomy_code})</td>
                           <td className="px-6 py-4">
@@ -930,30 +866,27 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-mono">
-                      <tr>
-                        <td className="px-4 py-3 text-slate-600">{selectedProvider.last_updated}</td>
-                        <td className="px-4 py-3 text-indigo-600 font-semibold">STATUS_VERIFIED</td>
-                        <td className="px-4 py-3 text-slate-500">Weekly dissemination check confirmed active record state.</td>
-                      </tr>
-                      {selectedProvider.is_new && (
+                      {providerEvents.length === 0 && (
                         <tr>
-                          <td className="px-4 py-3 text-slate-600">{selectedProvider.last_updated}</td>
-                          <td className="px-4 py-3 text-emerald-600 font-semibold">NPI_ENUMERATED_ADD</td>
-                          <td className="px-4 py-3 text-slate-500">New NPI successfully added via CMS weekly dissemination delta.</td>
+                          <td colSpan={3} className="px-4 py-3 text-slate-500">No changes logged for this provider yet.</td>
                         </tr>
                       )}
-                      {selectedProvider.is_deactivated && (
-                        <tr>
-                          <td className="px-4 py-3 text-slate-600">{selectedProvider.last_updated}</td>
-                          <td className="px-4 py-3 text-rose-600 font-semibold">NPI_DEACTIVATION</td>
-                          <td className="px-4 py-3 text-slate-500">Provider flagged as deactivated in NPPES registry diff.</td>
+                      {providerEvents.map((ev: any) => (
+                        <tr key={ev.id}>
+                          <td className="px-4 py-3 text-slate-600">{ev.occurred_at}</td>
+                          <td className={`px-4 py-3 font-semibold ${ev.event_type === 'deactivated' ? 'text-rose-600' : ev.event_type === 'added' || ev.event_type === 'reactivated' ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                            {ev.event_type.toUpperCase()}{ev.field ? ` (${ev.field})` : ''}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500">
+                            {ev.event_type === 'updated'
+                              ? `${ev.old_value ?? '∅'} → ${ev.new_value ?? '∅'}`
+                              : ev.event_type === 'added' ? 'Record first seen in this source.'
+                              : ev.event_type === 'deactivated' ? 'Marked deactivated.'
+                              : ev.event_type === 'reactivated' ? 'Marked active again.'
+                              : ''}
+                          </td>
                         </tr>
-                      )}
-                      <tr>
-                        <td className="px-4 py-3 text-slate-600">2026-10-01</td>
-                        <td className="px-4 py-3 text-slate-700 font-semibold">INITIAL_IMPORT</td>
-                        <td className="px-4 py-3 text-slate-500">Record ingested from monthly NPPES full baseline file.</td>
-                      </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

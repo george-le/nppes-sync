@@ -1,0 +1,13 @@
+services:
+  nppes-sync:
+    build: .
+    container_name: nppes-sync
+    restart: unless-stopped
+    ports:
+      # Host port 3300, bound to this machine's Tailscale address only (not the LAN or public interfaces).
+      # 3000 is used by another project on this host.
+      - "100.73.215.72:3300:3000"
+    volumes:
+      - /mnt/data/provider-data:/data
+    environment:
+      - DB_FILE=/data/nppes_pipeline.duckdb

@@ -1,0 +1,114 @@
+{
+  "_comment": "Payer FHIR Provider Directory endpoints for California. Source: third-party AccessMediCal project (https://github.com/jcl347/AccessMediCal, data/fhir-endpoints.json), not an official list. Re-verify before use. 'metadataStatus' is the HTTP status of GET {baseUrl}/metadata, checked 2026-10-31 unless noted.",
+  "payers": [
+    {
+      "id": "la-care",
+      "name": "L.A. Care Health Plan",
+      "baseUrl": "https://us107.ir4.edifecscloud.com/lac/fhir/pd/R4",
+      "auth": "none",
+      "geo": "postal",
+      "metadataStatus": 200,
+      "note": "No NPI identifiers in sample roles (npi=0)."
+    },
+    {
+      "id": "phc",
+      "name": "Public Health Care (PHC California)",
+      "baseUrl": "https://api.ahffhir.com/r4/Public",
+      "auth": "none",
+      "geo": "postal",
+      "metadataStatus": 200,
+      "note": "Not Partnership HealthPlan of California."
+    },
+    {
+      "id": "iehp",
+      "name": "Inland Empire Health Plan",
+      "baseUrl": "https://fhir.iehp.org/provider-directory",
+      "auth": "none",
+      "geo": "postal",
+      "metadataStatus": 200
+    },
+    {
+      "id": "molina",
+      "name": "Molina Healthcare of California",
+      "baseUrl": "https://api.interop.molinahealthcare.com/providerdirectory",
+      "auth": "none",
+      "geo": "postal-single",
+      "metadataStatus": 200,
+      "note": "Near search reportedly returns 500. Resources carry no NPI identifiers (npi=0 in sample)."
+    },
+    {
+      "id": "blue-shield-promise",
+      "name": "Blue Shield Promise",
+      "baseUrl": "https://api.blueshieldca.com/bsc/fhir/fhir-server/api/v4/cloud/provider-directory",
+      "auth": "none",
+      "geo": "near",
+      "metadataStatus": 200,
+      "note": "Only endpoint reported with real coordinates."
+    },
+    {
+      "id": "gold-coast",
+      "name": "Gold Coast Health Plan",
+      "baseUrl": "https://us120.fhir.edifecsfedcloud.com/gchp_meta/pd/R4",
+      "auth": "none",
+      "geo": "postal",
+      "metadataStatus": 200,
+      "note": "README says host is IP-allowlisted; may fail from some networks."
+    },
+    {
+      "id": "caloptima",
+      "name": "CalOptima Health",
+      "baseUrl": "https://us120.fhir.edifecsfedcloud.com/copt_pdfhir",
+      "auth": "none",
+      "geo": "postal",
+      "metadataStatus": 404,
+      "searchOk": true,
+      "note": "/metadata returns 404 but PractitionerRole search works (checked 2026-10-31). Location.position is empty, so no geo search."
+    },
+    {
+      "id": "partnership-hp",
+      "name": "Partnership HealthPlan of California",
+      "baseUrl": "https://us120.fhir.edifecsfedcloud.com/php_pdfhir",
+      "auth": "none",
+      "geo": "postal",
+      "metadataStatus": 404,
+      "searchOk": true,
+      "note": "/metadata returns 404, but PractitionerRole search works. Gateway is intermittent (502 and timeouts on some calls)."
+    },
+    {
+      "id": "health-net",
+      "name": "Health Net",
+      "baseUrl": null,
+      "auth": "portal-gated",
+      "geo": null,
+      "metadataStatus": null,
+      "note": "FHIR base behind partners.centene.com login. Public JSON directory dataset exists (healthnet-providers.json) per third-party README."
+    },
+    {
+      "id": "anthem",
+      "name": "Anthem Blue Cross",
+      "baseUrl": null,
+      "auth": "api-key",
+      "geo": null,
+      "metadataStatus": null,
+      "note": "Metadata public; data queries return 403 without API key/OAuth registration."
+    },
+    {
+      "id": "kaiser",
+      "name": "Kaiser Permanente",
+      "baseUrl": null,
+      "auth": "registration",
+      "geo": "near",
+      "metadataStatus": null,
+      "note": "Gateway returns 406 to FHIR requests. Candidate: https://kpx-service-bus.kp.org/service/hp/mhpo/healthplanproviderv1rc/ (unverified). PDF directories only publicly."
+    },
+    {
+      "id": "kern",
+      "name": "Kern Family Health Care",
+      "baseUrl": null,
+      "auth": null,
+      "geo": null,
+      "metadataStatus": null,
+      "note": "No public Provider Directory endpoint found."
+    }
+  ]
+}
